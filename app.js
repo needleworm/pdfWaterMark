@@ -258,6 +258,7 @@ function setupEventListeners() {
     document.getElementById('canvas-wrapper').classList.add('hidden');
     document.getElementById('preview-placeholder').classList.remove('hidden');
     document.getElementById('preview-pagination').style.display = 'none';
+    document.getElementById('btn-print-preview').classList.add('hidden');
     
     updateQueueUI();
     showToast("대기열이 비워졌습니다.");
@@ -287,6 +288,9 @@ function setupEventListeners() {
     updateZoomUI();
     renderPreviewPage();
   });
+
+  // Print trigger listener
+  document.getElementById('btn-print-preview').addEventListener('click', printCurrentPdf);
 }
 
 // Update Zoom Percentage display text
@@ -430,6 +434,7 @@ function removeFileFromQueue(id) {
     document.getElementById('canvas-wrapper').classList.add('hidden');
     document.getElementById('preview-placeholder').classList.remove('hidden');
     document.getElementById('preview-pagination').style.display = 'none';
+    document.getElementById('btn-print-preview').classList.add('hidden');
     
     // Auto-select another if available
     if (filesQueue.length > 0) {
@@ -467,6 +472,9 @@ async function selectFileForPreview(id) {
     // Show pagination bar
     const paginationBar = document.getElementById('preview-pagination');
     paginationBar.style.display = 'flex';
+    
+    // Show print button
+    document.getElementById('btn-print-preview').classList.remove('hidden');
     
     renderPreviewPage();
   } catch (error) {
@@ -819,4 +827,76 @@ function downloadBytes(bytesOrBlob, filename, mimeType) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }, 100);
+}
+
+// Print Current PDF with Watermark
+async function printCurrentPdf() {
+  if (!currentPreviewFileId) return;
+  
+  const fileItem = filesQueue.find(item => item.id === currentPreviewFileId);
+  if (!fileItem) return;
+  
+  setProcessingModal(true, "인쇄 준비 중", "문서에 워터마크를 적용하고 인쇄용 데이터를 준비 중입니다...", 30);
+  
+  try {
+    let pdfBytes = fileItem.outputBytes;
+    if (!pdfBytes) {
+      fileItem.status = 'processing';
+      updateQueueUI();
+      
+      // Delay to allow UI modal update
+      await new Promise(r => setTimeout(r, 200));
+      
+      pdfBytes = await applyWatermarkToPdf(fileItem);
+      fileItem.outputBytes = pdfBytes;
+      fileItem.status = 'done';
+      updateQueueUI();
+    }
+    
+    setProcessingModal(true, "인쇄 창 준비 중", "브라우저의 인쇄 대화상자가 열립니다.", 80);
+    await new Promise(r => setTimeout(r, 200));
+    
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create hidden iframe to trigger print dialog
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (printErr) {
+        console.error("Iframe print blocked, falling back to new tab:", printErr);
+        // Fallback: Open PDF in a new tab so user can print manually if iframe is blocked
+        const printWin = window.open(url, '_blank');
+        if (printWin) {
+          printWin.focus();
+        } else {
+          showToast("팝업이 차단되었습니다. 주소창 우측에서 팝업 허용을 해주세요.");
+        }
+      }
+      
+      // Cleanup after spooling (delay to prevent breaking print dialog)
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+        URL.revokeObjectURL(url);
+      }, 10000);
+    };
+    
+    showToast("인쇄 작업이 요청되었습니다.");
+  } catch (error) {
+    console.error("Print processing failed:", error);
+    showToast("인쇄용 문서를 준비하는 도중 오류가 발생했습니다.");
+  } finally {
+    setProcessingModal(false);
+  }
 }
