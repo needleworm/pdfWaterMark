@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroMark - 로컬 PDF 출력자 워터마크 생성기</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Nanum+Gothic:wght@400;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient background glow elements -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <i class="fa-solid fa-file-shield"></i>
+        </div>
+        <div class="logo-text">
+          <h1>AeroMark</h1>
+          <p>로컬 PDF 출력자 워터마크 생성기</p>
+        </div>
+      </div>
+      
+      <!-- Security Badge -->
+      <div class="security-badge">
+        <i class="fa-solid fa-lock text-cyan"></i>
+        <span>100% 로컬 보안 연산 (외부 서버 전송 없음)</span>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="app-workspace">
+      <!-- Left Column: Controls & Upload -->
+      <section class="workspace-panel controls-panel">
+        
+        <!-- Drag & Drop Zone -->
+        <div class="card glass-card upload-card">
+          <div class="drag-zone" id="drag-zone">
+            <input type="file" id="file-input" multiple accept=".pdf" class="hidden-file-input">
+            <div class="upload-icon">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+            </div>
+            <h3>PDF 파일을 드래그하여 업로드하세요</h3>
+            <p class="upload-sub">또는 클릭하여 파일 탐색기 열기 (.pdf)</p>
+          </div>
+        </div>
+
+        <!-- Watermark Information Settings -->
+        <div class="card glass-card settings-card">
+          <div class="card-header">
+            <i class="fa-solid fa-sliders"></i>
+            <h2>워터마크 설정</h2>
+          </div>
+          
+          <div class="settings-group">
+            <h3>출력자 정보 기재</h3>
+            
+            <div class="input-wrapper">
+              <label for="user-name">출력자 이름</label>
+              <div class="input-field">
+                <i class="fa-solid fa-user"></i>
+                <input type="text" id="user-name" placeholder="이름을 입력하세요 (예: 홍길동)">
+              </div>
+            </div>
+            
+            <div class="input-wrapper">
+              <label for="ip-address">출력 IP 주소</label>
+              <div class="input-field">
+                <i class="fa-solid fa-network-wired"></i>
+                <input type="text" id="ip-address" placeholder="IP 불러오는 중...">
+                <button type="button" class="btn-icon" id="btn-refresh-ip" title="IP 주소 새로고침">
+                  <i class="fa-solid fa-rotate"></i>
+                </button>
+              </div>
+              <span class="field-info" id="ip-status-text">IP 감지 중...</span>
+            </div>
+
+            <div class="input-wrapper">
+              <label>출력 시간 (실시간 반영)</label>
+              <div class="input-field disabled-field">
+                <i class="fa-solid fa-clock"></i>
+                <span id="live-time-display">YYYY-MM-DD HH:mm:ss</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Style customization -->
+          <div class="settings-group">
+            <h3>스타일 및 배치</h3>
+            
+            <div class="slider-wrapper">
+              <div class="slider-label">
+                <span>글자 크기</span>
+                <span class="value-display" id="val-font-size">9px</span>
+              </div>
+              <input type="range" id="slider-font-size" min="6" max="20" value="9" step="0.5">
+            </div>
+
+            <div class="slider-wrapper">
+              <div class="slider-label">
+                <span>투명도 (Opacity)</span>
+                <span class="value-display" id="val-opacity">15%</span>
+              </div>
+              <input type="range" id="slider-opacity" min="5" max="60" value="15" step="1">
+            </div>
+
+            <div class="slider-wrapper">
+              <div class="slider-label">
+                <span>회전 각도</span>
+                <span class="value-display" id="val-rotation">-30°</span>
+              </div>
+              <input type="range" id="slider-rotation" min="-90" max="90" value="-30" step="5">
+            </div>
+
+            <div class="slider-wrapper">
+              <div class="slider-label">
+                <span>그리드 간격 (밀도)</span>
+                <span class="value-display" id="val-grid-density">200px</span>
+              </div>
+              <input type="range" id="slider-grid-density" min="100" max="400" value="200" step="10">
+            </div>
+          </div>
+
+          <!-- Offline Font Customization -->
+          <div class="settings-group font-settings">
+            <div class="font-settings-header" id="font-accordion-trigger">
+              <h3><i class="fa-solid fa-font"></i> 오프라인/사용자 폰트 설정 (선택사항)</h3>
+              <i class="fa-solid fa-chevron-down accordion-arrow"></i>
+            </div>
+            <div class="font-settings-content hidden" id="font-accordion-content">
+              <p class="font-sub-text">기본으로 jsDelivr CDN을 통해 나눔고딕 글꼴을 사용하여 한글을 렌더링합니다. 인터넷이 안되는 환경이거나 다른 글꼴을 쓰려면 아래에 <code>.ttf</code> 파일을 업로드하세요.</p>
+              <div class="font-upload-field">
+                <input type="file" id="font-file-input" accept=".ttf">
+                <span class="font-status-label" id="font-status-label">기본값: 나눔고딕 (CDN)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Preview & Process Queue -->
+      <section class="workspace-panel preview-panel">
+        
+        <!-- Live Preview -->
+        <div class="card glass-card preview-card">
+          <div class="card-header preview-header">
+            <div class="header-left">
+              <i class="fa-solid fa-eye"></i>
+              <h2>실시간 미리보기</h2>
+            </div>
+            <div class="preview-pagination" id="preview-pagination" style="display: none;">
+              <button class="btn-pagination" id="prev-page" title="이전 페이지"><i class="fa-solid fa-chevron-left"></i></button>
+              <span id="page-num-display">1 / 1</span>
+              <button class="btn-pagination" id="next-page" title="다음 페이지"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+          
+          <div class="preview-viewport" id="preview-viewport">
+            <!-- Empty state -->
+            <div class="preview-placeholder" id="preview-placeholder">
+              <div class="placeholder-icon">
+                <i class="fa-regular fa-file-pdf"></i>
+              </div>
+              <p>업로드된 PDF 파일의 첫 페이지 미리보기가 여기에 표시됩니다.</p>
+            </div>
+            
+            <!-- Preview Canvas and Wrapper -->
+            <div class="canvas-wrapper hidden" id="canvas-wrapper">
+              <canvas id="pdf-preview-canvas"></canvas>
+              <canvas id="watermark-overlay-canvas"></canvas>
+            </div>
+            
+            <!-- Loading Indicator -->
+            <div class="preview-loader hidden" id="preview-loader">
+              <div class="spinner"></div>
+              <p>페이지 렌더링 중...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Files List & Batch Actions -->
+        <div class="card glass-card queue-card">
+          <div class="card-header">
+            <i class="fa-solid fa-list-check"></i>
+            <h2>대기열 및 처리 결과</h2>
+            <span class="badge" id="queue-count">0개 파일</span>
+          </div>
+
+          <div class="queue-viewport">
+            <!-- Empty state -->
+            <div class="queue-placeholder" id="queue-placeholder">
+              <p>대기열이 비어있습니다. PDF 파일을 먼저 업로드해주세요.</p>
+            </div>
+
+            <!-- Queue list -->
+            <div class="queue-list hidden" id="queue-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Batch Action Button footer -->
+          <div class="queue-actions hidden" id="queue-actions">
+            <button class="btn btn-secondary" id="btn-clear-all">
+              <i class="fa-solid fa-trash-can"></i> 전체 삭제
+            </button>
+            <button class="btn btn-primary" id="btn-download-all">
+              <i class="fa-solid fa-file-zipper"></i> 전체 변환 및 다운로드 (.zip)
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Global Toast Notification -->
+  <div class="toast" id="toast">
+    <i class="fa-solid fa-info-circle toast-icon"></i>
+    <span class="toast-message" id="toast-message">메시지 내용</span>
+  </div>
+
+  <!-- Global Fullscreen Processing Overlay -->
+  <div class="modal-overlay hidden" id="processing-modal">
+    <div class="modal-content glass-card">
+      <div class="loader-circle"></div>
+      <h3 id="modal-title">PDF 워터마크 삽입 중</h3>
+      <p id="modal-desc">잠시만 기다려주세요...</p>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="modal-progress-fill"></div>
+      </div>
+      <div class="progress-status" id="modal-progress-status">0% 완료</div>
+    </div>
+  </div>
+
+  <!-- PDF-Lib and PDF.js CDN Libraries -->
+  <!-- pdf-lib core -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <!-- @pdf-lib/fontkit for custom/Korean fonts embedding -->
+  <script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+  <!-- pdf.js (for rendering previews client-side) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- JSZip for compiling multiple PDFs into a ZIP archive -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <!-- Application script -->
+  <script src="app.js"></script>
+</body>
+</html>
