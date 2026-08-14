@@ -587,9 +587,19 @@ input[type="range"]::-webkit-slider-thumb:hover {
   cursor: not-allowed;
 }
 
-#page-num-display {
+#page-num-display, #zoom-percent-display {
   font-size: 0.8rem;
   font-weight: 600;
+  min-width: 40px;
+  text-align: center;
+  user-select: none;
+}
+
+.preview-divider {
+  color: rgba(255, 255, 255, 0.15);
+  margin: 0 0.1rem;
+  font-size: 0.85rem;
+  user-select: none;
 }
 
 /* Preview Viewport & Canvas Layout */

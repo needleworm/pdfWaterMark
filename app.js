@@ -6,6 +6,7 @@ let currentPreviewFileId = null;
 let currentPreviewPageNum = 1;
 let currentPreviewPdfDoc = null; // PDF.js instance
 let renderScale = 1.0; // Render scale for fitting preview
+let zoomScaleMultiplier = 1.0; // Zoom multiplier for preview
 
 // Fonts State
 let customFontBytes = null;
@@ -263,6 +264,37 @@ function setupEventListeners() {
   });
 
   document.getElementById('btn-download-all').addEventListener('click', processAndDownloadAll);
+
+  // Zoom controls event listeners
+  document.getElementById('zoom-out').addEventListener('click', () => {
+    if (zoomScaleMultiplier > 0.25) {
+      zoomScaleMultiplier -= 0.15;
+      updateZoomUI();
+      renderPreviewPage();
+    }
+  });
+
+  document.getElementById('zoom-in').addEventListener('click', () => {
+    if (zoomScaleMultiplier < 4.0) {
+      zoomScaleMultiplier += 0.15;
+      updateZoomUI();
+      renderPreviewPage();
+    }
+  });
+
+  document.getElementById('zoom-reset').addEventListener('click', () => {
+    zoomScaleMultiplier = 1.0;
+    updateZoomUI();
+    renderPreviewPage();
+  });
+}
+
+// Update Zoom Percentage display text
+function updateZoomUI() {
+  const zoomDisplay = document.getElementById('zoom-percent-display');
+  if (zoomDisplay) {
+    zoomDisplay.textContent = `${Math.round(zoomScaleMultiplier * 100)}%`;
+  }
 }
 
 // --- Upload Processing ---
@@ -415,6 +447,8 @@ async function selectFileForPreview(id) {
   
   currentPreviewFileId = id;
   currentPreviewPageNum = 1;
+  zoomScaleMultiplier = 1.0;
+  updateZoomUI();
   
   // Highlight active queue row
   updateQueueUI();
@@ -467,16 +501,30 @@ async function renderPreviewPage() {
     const scaleX = containerWidth / rawViewport.width;
     const scaleY = containerHeight / rawViewport.height;
     
-    renderScale = Math.min(scaleX, scaleY);
-    renderScale = Math.max(0.2, Math.min(3.0, renderScale)); // Clamp scale
+    // Calculate base fit scale and apply zoom multiplier
+    const baseScale = Math.min(scaleX, scaleY);
+    renderScale = baseScale * zoomScaleMultiplier;
+    renderScale = Math.max(0.1, Math.min(10.0, renderScale)); // Clamp scale
     
-    const viewport = page.getViewport({ scale: renderScale });
+    const dpr = window.devicePixelRatio || 1;
+    const viewport = page.getViewport({ scale: renderScale * dpr });
+    const cssViewport = page.getViewport({ scale: renderScale });
     
-    // Update layout canvas sizes
+    // Update layout canvas internal resolution (high-DPI support)
     pdfCanvas.width = viewport.width;
     pdfCanvas.height = viewport.height;
     watermarkCanvas.width = viewport.width;
     watermarkCanvas.height = viewport.height;
+    
+    // Set CSS display dimensions to fit container layout
+    const widthStyle = `${cssViewport.width}px`;
+    const heightStyle = `${cssViewport.height}px`;
+    pdfCanvas.style.width = widthStyle;
+    pdfCanvas.style.height = heightStyle;
+    watermarkCanvas.style.width = widthStyle;
+    watermarkCanvas.style.height = heightStyle;
+    canvasWrapper.style.width = widthStyle;
+    canvasWrapper.style.height = heightStyle;
     
     // Draw PDF page
     const renderCtx = pdfCanvas.getContext('2d');
@@ -525,9 +573,10 @@ function drawWatermarkOnCanvas() {
   const rotationInput = parseFloat(document.getElementById('slider-rotation').value);
   const gridDensityInput = parseFloat(document.getElementById('slider-grid-density').value);
   
-  // Scale parameters based on canvas rendering scale
-  const fontSize = fontSizeInput * renderScale;
-  const gridDensity = gridDensityInput * renderScale;
+  // Scale parameters based on canvas rendering scale (including DPR)
+  const dpr = window.devicePixelRatio || 1;
+  const fontSize = fontSizeInput * renderScale * dpr;
+  const gridDensity = gridDensityInput * renderScale * dpr;
   
   ctx.save();
   
